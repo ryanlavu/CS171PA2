@@ -45,7 +45,7 @@ def get_user_input():
 		else:
 			user_input_list.append("P" + str(ID))
 			input_string = " ".join(user_input_list)
-			
+
 			#Need to stop here and implement Lamport's Mutex Algorithm
 
 			try:
@@ -87,6 +87,10 @@ if __name__ == "__main__":
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
 	SERVER_PORT = 9000
+	ID = sys.argv[1]
+	ID_int = int(ID)
+	list_pid = [1, 2, 3]
+	list_pid.pop(ID_int)
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	# do not need to specify address for own socket for making an outbound connection
@@ -96,15 +100,20 @@ if __name__ == "__main__":
 	# simulate 1 seconds message-passing delay
 
 	#Need to connect to all other clients
-	#... out_sock.connect ...
+	#Create two more connecting sockets (for the other clients)
+	out_sock_2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	out_sock_3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	out_sock_list = [out_sock_2, out_sock_3]
+
+	for i in range(len(list_pid)):
+		out_sock_list[i].connect((SERVER_IP, SERVER_PORT + ID_int))
 
 	#Need to set up pair of <Local Time, pid> after connecting to all other clients
 	#Start clock off at time 0
 	#Whenever local time changes, we need to print out on client side
-	time_pid_pair = np.array([0, sys.argv[1]])
+	time_pid_pair = np.array([0, ID])
 
-
-	ID = sys.argv[1]
+	
 	Hello_string = "Hello " + str(ID)
 	out_sock.sendall(bytes(Hello_string, "utf-8"))
 
