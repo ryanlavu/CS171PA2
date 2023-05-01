@@ -10,6 +10,8 @@ from sys import stdout
 from time import sleep
 import sys
 
+import numpy as np 
+
 # keep waiting and asking for user inputs
 def get_user_input():
 	#Need to account for Transfer and Balance inputs
@@ -43,6 +45,9 @@ def get_user_input():
 		else:
 			user_input_list.append("P" + str(ID))
 			input_string = " ".join(user_input_list)
+			
+			#Need to stop here and implement Lamport's Mutex Algorithm
+
 			try:
 				# send user input string to server, converted into bytes
 				out_sock.sendall(bytes(input_string, "utf-8"))
@@ -89,8 +94,15 @@ if __name__ == "__main__":
 	# attempt to connect own socket to server's socket address
 	out_sock.connect((SERVER_IP, SERVER_PORT))
 	# simulate 1 seconds message-passing delay
-	
-	#print("connected to server")
+
+	#Need to connect to all other clients
+	#... out_sock.connect ...
+
+	#Need to set up pair of <Local Time, pid> after connecting to all other clients
+	#Start clock off at time 0
+	#Whenever local time changes, we need to print out on client side
+	time_pid_pair = np.array([0, sys.argv[1]])
+
 
 	ID = sys.argv[1]
 	Hello_string = "Hello " + str(ID)

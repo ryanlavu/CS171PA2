@@ -40,6 +40,8 @@ class blockchain:
 	
 	def Print_Blockchain(self):
 		#Need to print out blockchain
+		#Need to also print out the timestamps 
+
 		string_to_print = ""
 		string_to_print += "["
 		for block_obj_indx in range(len(list_blockchain.blockchain_list)):
