@@ -46,7 +46,8 @@ def get_user_input():
 			#Manual input to connect to all the other clients
 			#Outgoing connection to other clients
 			for i in range(len(list_pid)):
-				out_sock_list[i].connect((SERVER_IP, SERVER_PORT + ID_int))
+				print("CONNECTING111")
+				out_sock_list[i].connect((SERVER_IP, SERVER_PORT + list_pid[i]))
 
 		else:
 			user_input_list.append("P" + str(ID))
@@ -118,11 +119,14 @@ if __name__ == "__main__":
 	# since client and server are just different processes on the same machine
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
-	SERVER_PORT = 9000
+	SERVER_PORT = 8000
+	
 	ID = sys.argv[1]
 	ID_int = int(ID)
+	
 	list_pid = [1, 2, 3]
-	list_pid.pop(ID_int)
+	list_pid.pop(ID_int-1)
+	
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	# do not need to specify address for own socket for making an outbound connection
@@ -134,15 +138,18 @@ if __name__ == "__main__":
 	#Need to connect to all other clients
 	#Create two more connecting sockets (for the other clients)
 	#!!!! I dont know if this is needed !!!!
+	
 	out_sock_2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	out_sock_3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	out_sock_list = [out_sock_2, out_sock_3]
+	
 
 
 	#Need to set up pair of <Local Time, pid> after connecting to all other clients
 	#Start clock off at time 0
 	#Whenever local time changes, we need to print out on client side
-	time_pid_pair = np.array([0, ID])
+	
+	#time_pid_pair = np.array([0, ID_int])
 
 	
 	Hello_string = "Hello " + str(ID)
@@ -152,27 +159,36 @@ if __name__ == "__main__":
 	# so user input and socket receive do not block each other
 	threading.Thread(target=get_user_input, daemon=False).start()
 
+	
 	out_socks = []
 	#Need to set up listening socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	in_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 	in_sock.bind((SERVER_IP, SERVER_PORT + ID_int))
 	in_sock.listen()
+	
 
 	# loop to keep accepting new connections, keep looping until connected to the two other clients
+	
 	while len(out_socks) != 2:
+		print("IN WHILE")
 		try:
 			# wait to accept any incoming connections
 			# conn: socket object used to send to and receive from connection
 			# addr: (IP, port) of connection 
+			print("IN TRY")
 			conn, addr = in_sock.accept()
 		except:
 			print("exception in accept", flush=True)
 			break
 		# add connection to array to send data through it later
+		print("ADDING")
 		out_socks.append((conn, addr))
 		# spawn new thread for responding to each connection
 		threading.Thread(target=respond, args=(conn, addr)).start()
+	
+
+	print("CONNECTED TO ALL OTHER CLIENTS")
 
 	# infinite loop to keep waiting to receive new data from server
 	while True:

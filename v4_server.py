@@ -58,6 +58,7 @@ class blockchain:
 		#If transaction violates the balances, give back error message
 		if block.transaction == "":
 			self.blockchain_list.append(block)
+			print("NOT SUPPOSED TO GO IN HERE!")
 			return "Success"
 		transaction_list = block.transaction.split(",")
 		#Assume transactions in form of P1,P2,$1
@@ -135,26 +136,6 @@ def get_user_input():
 			sleep(sleep_time)
 		else:
 			continue
-		#except EOFError as e:
-			#in_sock.close()
-			#for sock in out_socks:
-			#	sock[0].close()
-			#print("exiting program", flush=True)
-			# flush console output buffer in case there are remaining prints
-			# that haven't actually been printed to console
-			#stdout.flush() # imported from sys library
-			# exit program with status 0
-			#_exit(0) # imported from os library
-		#except KeyboardInterrupt:
-			#in_sock.close()
-			#for sock in out_socks:
-			#	sock[0].close()
-			#print("exiting program", flush=True)
-			# flush console output buffer in case there are remaining prints
-			# that haven't actually been printed to console
-			#stdout.flush() # imported from sys library
-			# exit program with status 0
-			#_exit(0) # imported from os library
 		
 
 # simulates network delay then handles received message
@@ -180,23 +161,8 @@ def handle_msg(data, addr):
 		#Assume that we append message at end to include which client requested Balance
 		#Message Input: Balance P2 P1
 		#^ Means P1 requested Balance of P2
-		#bal_client_id = client_dict[addr[1]]
-		#client_bal = list_bal[bal_client_id]
 		send_message = "Balance: $" + str(client_bal)
-		#orig_client_conn = out_socks[[x[1] for x in out_socks].index(addr)][0]
-		#orig_client_addr = out_socks[[x[1] for x in out_socks].index(addr)][1]
-		#print("ORIG_CONN = ",orig_client_conn)
-		#orig_client_conn = out_socks[orig_client_id][0]
-
 		
-		#try:
-		#	bal_message = "Balance: $" + str(client_bal)
-		#	orig_client_conn.sendall(bytes(f"{bal_message}"), "utf-8")
-		#	#print(f"sent message to port {recv_addr[1]}", flush=True)
-		#	print("BALANCE SENT",flush=True)
-		#except:
-		#	#print(f"exception in sending to port {recv_addr[1]}", flush=True)
-		#	print("EXCEPTION IN SENDING BALANCE", flush=True)
 
 	if data_message[0] == "Transfer":
 		#Assume we append message at the end to include the client we are transferring funds from
@@ -246,23 +212,9 @@ def handle_msg(data, addr):
 					print(f"exception in sending to port {recv_addr[1]}", flush=True)
 					continue
 
-	# broadcast to all clients by iterating through each stored connection
-	#for sock in out_socks:
-	#	conn = sock[0]
-	#	recv_addr = sock[1]
-	#	# echo message back to client
-	#	try:
-	#		# convert message into bytes and send through socket
-	#		conn.sendall(bytes(f"{addr[1]}: {data}", "utf-8"))
-	#		print(f"sent message to port {recv_addr[1]}", flush=True)
-	#	# handling exception in case trying to send data to a closed connection
-	#	except:
-	#		print(f"exception in sending to port {recv_addr[1]}", flush=True)
-	#		continue
-
 # handle a new connection by waiting to receive from connection
 def respond(conn, addr):
-	#print(f"accepted connection from port {addr[1]}", flush=True)
+	print(f"accepted connection from port {addr[1]}", flush=True)
 
 	# infinite loop to keep waiting to receive new data from this client
 	while True:
@@ -295,7 +247,7 @@ if __name__ == "__main__":
 	# programatically get local machine's IP
 	IP = socket.gethostname()
 	# port 3000-49151 are generally usable
-	PORT = 9000
+	PORT = 8000
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -327,6 +279,7 @@ if __name__ == "__main__":
 			print("exception in accept", flush=True)
 			break
 		# add connection to array to send data through it later
+		#print("SERVER ADDING")
 		out_socks.append((conn, addr))
 		# spawn new thread for responding to each connection
 		threading.Thread(target=respond, args=(conn, addr)).start()
