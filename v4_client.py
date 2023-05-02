@@ -50,33 +50,62 @@ def get_user_input():
 				out_sock_list[i].connect((SERVER_IP, SERVER_PORT + list_pid[i]))
 
 		else:
+			#Balance and Transfer requests to server
 			user_input_list.append("P" + str(ID))
 			input_string = " ".join(user_input_list)
 
-			#Need to stop here and implement Lamport's Mutex Algorithm
+			if user_input_list[0] == "Balance":
+				try:
+					# send user input string to server, converted into bytes
+					out_sock.sendall(bytes(input_string, "utf-8"))
+				# handling exception in case trying to send data to a closed connection
+				except EOFError as e:
+					# close socket before exiting
+					out_sock.close()
+					#print("exiting program")
+					# flush console output buffer in case there are remaining prints
+					# that haven't actually been printed to console
+					stdout.flush() # imported from sys library
+					# exit program with status 0
+					_exit(0) # imported from os library
+				except KeyboardInterrupt:
+					# close socket before exiting
+					out_sock.close()
+					#print("exiting program")
+					# flush console output buffer in case there are remaining prints
+					# that haven't actually been printed to console
+					stdout.flush() # imported from sys library
+					# exit program with status 0
+					_exit(0) # imported from os library
 
-			try:
-				# send user input string to server, converted into bytes
-				out_sock.sendall(bytes(input_string, "utf-8"))
-			# handling exception in case trying to send data to a closed connection
-			except EOFError as e:
-				# close socket before exiting
-				out_sock.close()
-				#print("exiting program")
-				# flush console output buffer in case there are remaining prints
-				# that haven't actually been printed to console
-				stdout.flush() # imported from sys library
-				# exit program with status 0
-				_exit(0) # imported from os library
-			except KeyboardInterrupt:
-				# close socket before exiting
-				out_sock.close()
-				#print("exiting program")
-				# flush console output buffer in case there are remaining prints
-				# that haven't actually been printed to console
-				stdout.flush() # imported from sys library
-				# exit program with status 0
-				_exit(0) # imported from os library
+			if user_input_list[0] == "Transfer":
+				#Need to stop here and implement Lamport's Mutex Algorithm
+
+				try:
+					# send user input string to server, converted into bytes
+					out_sock.sendall(bytes(input_string, "utf-8"))
+				# handling exception in case trying to send data to a closed connection
+				except EOFError as e:
+					# close socket before exiting
+					out_sock.close()
+					#print("exiting program")
+					# flush console output buffer in case there are remaining prints
+					# that haven't actually been printed to console
+					stdout.flush() # imported from sys library
+					# exit program with status 0
+					_exit(0) # imported from os library
+				except KeyboardInterrupt:
+					# close socket before exiting
+					out_sock.close()
+					#print("exiting program")
+					# flush console output buffer in case there are remaining prints
+					# that haven't actually been printed to console
+					stdout.flush() # imported from sys library
+					# exit program with status 0
+					_exit(0) # imported from os library
+			
+
+			
 
 # simulates network delay then handles received message
 def handle_msg(data):
@@ -119,7 +148,7 @@ if __name__ == "__main__":
 	# since client and server are just different processes on the same machine
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
-	SERVER_PORT = 8000
+	SERVER_PORT = 7001
 	
 	ID = sys.argv[1]
 	ID_int = int(ID)
@@ -189,7 +218,8 @@ if __name__ == "__main__":
 	
 
 	print("CONNECTED TO ALL OTHER CLIENTS")
-
+	
+	
 	# infinite loop to keep waiting to receive new data from server
 	while True:
 		try:

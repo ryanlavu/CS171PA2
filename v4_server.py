@@ -134,6 +134,9 @@ def get_user_input():
 		if token_input[0] == "wait":
 			sleep_time = int(token_input[1])
 			sleep(sleep_time)
+
+		if token_input[0] == "output":
+			print("OUT_SOCKS = ", out_socks)
 		else:
 			continue
 		
@@ -169,6 +172,10 @@ def handle_msg(data, addr):
 		#Message Input: Transfer P2 $1 P1	
 		#^ Means we transfer $1 from P1 to P2
 		#orig_client_string = data_message[3]
+
+		#NEED TO ADD CRITICAL SECTION HERE
+
+
 		orig_client_string = "P"+str(client_dict[addr[1]])
 		recepient_string = data_message[1]
 		amount_dollar = data_message[2]
@@ -247,7 +254,7 @@ if __name__ == "__main__":
 	# programatically get local machine's IP
 	IP = socket.gethostname()
 	# port 3000-49151 are generally usable
-	PORT = 8000
+	PORT = 7001
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -279,7 +286,7 @@ if __name__ == "__main__":
 			print("exception in accept", flush=True)
 			break
 		# add connection to array to send data through it later
-		#print("SERVER ADDING")
+		print("SERVER ADDING")
 		out_socks.append((conn, addr))
 		# spawn new thread for responding to each connection
 		threading.Thread(target=respond, args=(conn, addr)).start()
