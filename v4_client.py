@@ -15,10 +15,9 @@ import numpy as np
 #Implement Lamport's algorithm here
 def start_lamports_alg():
 	#Put request at head of own queue
-	
-
-	#Counter for how many REPLY messages the client has received
-	reply_counter = 0
+	...
+	#Print out REQUEST on client screen whenever we request a transfer
+	print("REQUEST ", local_time)
 
 	#Send a Request message to the other clients
 	Request_string = "Request " + str(local_time) + str(ID) 
@@ -96,6 +95,8 @@ def get_user_input():
 
 			if user_input_list[0] == "Transfer":
 				#Need to stop here and implement Lamport's Mutex Algorithm
+				#Counter for how many REPLY messages the client has received
+				reply_counter = 0
 				local_time = local_time + 1
 				start_lamports_alg()
 				
@@ -139,27 +140,60 @@ def handle_msg(data, addr):
 		received_pid = data_message[2]
 		local_time = max(local_time, int(received_timestamp)) + 1
 
-	#Reply message to reply to "Request" messages if the source client doesn't need the crit section/it's transfer timestamp is higher
+		#Need to add requested transfer to own local queue
+		...
+		
+		#Need to now send off Reply message back
+		send_message = "Reply " + str(local_time) + str(pid)
+
+
+	#Reply message to reply to "Request" messages
 	if data_message[0] == "Reply":
+		reply_counter = reply_counter + 1
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
 		local_time = max(local_time, int(received_timestamp)) + 1
+		reply_counter = reply_counter + 1
 
 	#Respond message from the server to signal block added onto blockchain, for client to tell other clients crit section is free
 	if data_message[0] == "Respond":
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
 		local_time = max(local_time, int(received_timestamp)) + 1
+		#Need to remove own transfer from local request queue
+		...
+
+		#Need to now send off Release message to other clients
+		send_message = "Release " + str(local_time) + str(pid)
 	
 	#The message sent to other clients to say crit section is free
 	if data_message[0] == "Release":
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
 		local_time = max(local_time, int(received_timestamp)) + 1
+		#Need to now remove received_pid transfer from local request queue
+		...
+
 
 	# echo message to console
 	else:
 		print(data)
+
+	#When receiving one of these messages, per Lamport need to send certain message back to sender
+	if data_message[0] == "Request" or data_message[0] == "Respond":
+		for sock in out_socks:
+				conn = sock[0]
+				recv_addr = sock[1]
+				# echo message back to client
+				if recv_addr == addr:
+					try:
+						# convert message into bytes and send through socket
+						conn.sendall(bytes(f"{send_message}", "utf-8"))
+						#print(f"sent message to port {recv_addr[1]}", flush=True)
+					# handling exception in case trying to send data to a closed connection
+					except:
+						print(f"exception in sending to port {recv_addr[1]}", flush=True)
+						continue
 
 def respond(conn, addr):
 	#print(f"accepted connection from port {addr[1]}", flush=True)
