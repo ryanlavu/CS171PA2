@@ -12,6 +12,20 @@ import sys
 
 import numpy as np 
 
+#Implement Lamport's algorithm here
+def start_lamports_alg():
+	#Put request at head of own queue
+	
+
+	#Counter for how many REPLY messages the client has received
+	reply_counter = 0
+
+	#Send a Request message to the other clients
+	Request_string = "Request " + str(local_time) + str(ID) 
+	for i in range(len(list_pid)):
+		out_sock_list[list_pid[i]].sendall(bytes(Request_string, "utf-8"))
+
+
 # keep waiting and asking for user inputs
 def get_user_input():
 	#Need to account for Transfer and Balance inputs
@@ -31,6 +45,7 @@ def get_user_input():
 			# exit program with status 0
 			_exit(0) # imported from os library
 		if user_input_list[0] == "wait":
+			local_time = local_time + 1
 			sleep_time = int(user_input_list[1])
 			sleep(sleep_time)
 		if user_input_list[0] == "exit":
@@ -55,6 +70,7 @@ def get_user_input():
 			input_string = " ".join(user_input_list)
 
 			if user_input_list[0] == "Balance":
+				local_time = local_time + 1
 				try:
 					# send user input string to server, converted into bytes
 					out_sock.sendall(bytes(input_string, "utf-8"))
@@ -80,7 +96,9 @@ def get_user_input():
 
 			if user_input_list[0] == "Transfer":
 				#Need to stop here and implement Lamport's Mutex Algorithm
-
+				local_time = local_time + 1
+				start_lamports_alg()
+				
 				try:
 					# send user input string to server, converted into bytes
 					out_sock.sendall(bytes(input_string, "utf-8"))
@@ -108,13 +126,40 @@ def get_user_input():
 			
 
 # simulates network delay then handles received message
-def handle_msg(data):
+def handle_msg(data, addr):
 	# simulate 3 seconds message-passing delay
-	#sleep(3) # imported from time library
+	sleep(3) # imported from time library
 	# decode byte data into a string
 	data = data.decode()
+	data_message = data.split()
+	#Let the structure of the received below messages be "MESSAGE_TYPE TIMESTAMP PID"
+	#Request message for Lamport's from other client
+	if data_message[0] == "Request":
+		received_timestamp = data_message[1]
+		received_pid = data_message[2]
+		local_time = max(local_time, int(received_timestamp)) + 1
+
+	#Reply message to reply to "Request" messages if the source client doesn't need the crit section/it's transfer timestamp is higher
+	if data_message[0] == "Reply":
+		received_timestamp = data_message[1]
+		received_pid = data_message[2]
+		local_time = max(local_time, int(received_timestamp)) + 1
+
+	#Respond message from the server to signal block added onto blockchain, for client to tell other clients crit section is free
+	if data_message[0] == "Respond":
+		received_timestamp = data_message[1]
+		received_pid = data_message[2]
+		local_time = max(local_time, int(received_timestamp)) + 1
+	
+	#The message sent to other clients to say crit section is free
+	if data_message[0] == "Release":
+		received_timestamp = data_message[1]
+		received_pid = data_message[2]
+		local_time = max(local_time, int(received_timestamp)) + 1
+
 	# echo message to console
-	print(data)
+	else:
+		print(data)
 
 def respond(conn, addr):
 	#print(f"accepted connection from port {addr[1]}", flush=True)
@@ -156,6 +201,7 @@ if __name__ == "__main__":
 	list_pid = [1, 2, 3]
 	list_pid.pop(ID_int-1)
 	
+	request_q = []
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	# do not need to specify address for own socket for making an outbound connection
@@ -165,20 +211,18 @@ if __name__ == "__main__":
 	# simulate 1 seconds message-passing delay
 
 	#Need to connect to all other clients
-	#Create two more connecting sockets (for the other clients)
-	#!!!! I dont know if this is needed !!!!
-	
+	#Create two more connecting sockets (for the other clients)	
 	out_sock_2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	out_sock_3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	out_sock_list = [out_sock_2, out_sock_3]
-	
-
 
 	#Need to set up pair of <Local Time, pid> after connecting to all other clients
 	#Start clock off at time 0
 	#Whenever local time changes, we need to print out on client side
-	
-	#time_pid_pair = np.array([0, ID_int])
+	#Increment by time_pid_pair[0] = time_pid_pair[0]+1
+	local_time = 0
+	pid = ID_int
+	time_pid_pair = np.array([0, ID_int])
 
 	
 	Hello_string = "Hello " + str(ID)
