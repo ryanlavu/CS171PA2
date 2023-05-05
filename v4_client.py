@@ -15,12 +15,12 @@ import numpy as np
 #Implement Lamport's algorithm here
 def start_lamports_alg():
 	#Put request at head of own queue
-	...
+	request_queue.append([pid, local_time])
 	#Print out REQUEST on client screen whenever we request a transfer
 	print("REQUEST ", local_time)
 
 	#Send a Request message to the other clients
-	Request_string = "Request " + str(local_time) + str(ID) 
+	Request_string = "Request " + str(local_time) + str(ID)  + str(local_time)
 	for i in range(len(list_pid)):
 		out_sock_list[list_pid[i]].sendall(bytes(Request_string, "utf-8"))
 
@@ -133,50 +133,68 @@ def handle_msg(data, addr):
 	# decode byte data into a string
 	data = data.decode()
 	data_message = data.split()
-	#Let the structure of the received below messages be "MESSAGE_TYPE TIMESTAMP PID"
-	#Request message for Lamport's from other client
+	#Let the structure be "REQUEST REQ_TIMESTAMP PID LOCAL_TIME"
+	#Receiving Request message for Lamport's from other client
 	if data_message[0] == "Request":
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
-		local_time = max(local_time, int(received_timestamp)) + 1
+		received_local_time = data_message[3]
+		local_time = max(local_time, int(received_local_time)) + 1
 
 		#Need to add requested transfer to own local queue
-		...
+		request_queue.append([received_pid, received_timestamp])
+
+		print("REPLY [", received_timestamp, ",", received_pid, "] ", str(local_time))
 		
 		#Need to now send off Reply message back
-		send_message = "Reply " + str(local_time) + str(pid)
+		send_message = "Reply " + received_timestamp + " " + str(pid) +  " " + str(local_time)
 
-
-	#Reply message to reply to "Request" messages
+	#Let the structure of reply message be "REPLY REQ_TIMESTAMP PID LOCAL_TIME"
+	#Receiving "Reply" messages
 	if data_message[0] == "Reply":
 		reply_counter = reply_counter + 1
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
-		local_time = max(local_time, int(received_timestamp)) + 1
+		received_local_time = data_message[3]
+
+		print("REPLIED ", received_timestamp)
+
+		local_time = max(local_time, int(received_local_time)) + 1
 		reply_counter = reply_counter + 1
 
-	#Respond message from the server to signal block added onto blockchain, for client to tell other clients crit section is free
+	#Let the structure of Respond message be "RESPOND RECEIVED_TIMESTAMP RECEIVED_PID"
+	#Receiving Respond message from the server to signal block added onto blockchain, for client to tell other clients crit section is free
 	if data_message[0] == "Respond":
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
-		local_time = max(local_time, int(received_timestamp)) + 1
-		#Need to remove own transfer from local request queue
-		...
+		local_time = local_time + 1
+		#local_time = max(local_time, int(received_timestamp)) + 1
 
+		print("RELEASE ", request_queue[0])
+
+		#Need to remove own transfer from local request queue
+		request_queue.pop(0)
+		
 		#Need to now send off Release message to other clients
-		send_message = "Release " + str(local_time) + str(pid)
+		send_message = "Release " + str(local_time) + " " + str(pid) + " " + str(local_time)
 	
-	#The message sent to other clients to say crit section is free
+	#Structure of Release message "RELEASE RECIEVED_TIMESTAMP RECEIVED_PID LOCAL_TIME"
+	#Receiving the Release message, saying crit section is free
 	if data_message[0] == "Release":
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
-		local_time = max(local_time, int(received_timestamp)) + 1
+		received_local_time = data_message[3]
+		local_time = max(local_time, int(received_local_time)) + 1
+
+		print("DONE [", received_timestamp, ",", received_pid, "]")
+
 		#Need to now remove received_pid transfer from local request queue
-		...
+		request_queue.pop(request_queue.index([received_pid, received_timestamp]))
 
 
 	# echo message to console
 	else:
+		local_time = local_time + 1
 		print(data)
 
 	#When receiving one of these messages, per Lamport need to send certain message back to sender
@@ -235,7 +253,8 @@ if __name__ == "__main__":
 	list_pid = [1, 2, 3]
 	list_pid.pop(ID_int-1)
 	
-	request_q = []
+	#Store requests as [PID, Timestamp]
+	request_queue = []
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	# do not need to specify address for own socket for making an outbound connection
