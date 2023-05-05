@@ -204,7 +204,7 @@ def handle_msg(data, addr):
 		send_from = data_message[3]
 		timestamp = data_message[4]
 
-		respond_string = "Respond " + timestamp
+		respond_string = "Respond " + timestamp + " " + str(local_time)
 
 		#Need to reorder transaction string to fit structure
 		#In order of PSender,PRecepient,$Amount,[Timestamp]
@@ -300,7 +300,7 @@ if __name__ == "__main__":
 	# programatically get local machine's IP
 	IP = socket.gethostname()
 	# port 3000-49151 are generally usable
-	PORT = 7185
+	PORT = 7195
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -27,7 +27,7 @@ def start_lamports_alg():
 	#Put request at head of own queue
 	request_queue.append([pid, local_time])
 	#Print out REQUEST on client screen whenever we request a transfer
-	print("REQUEST " + "[Timestamp: " + str(local_time)+ "-Pid: " + str(pid + "] "))
+	print("REQUEST " + "[Timestamp: " + str(local_time)+ "-Pid: " + str(pid) + "] ")
 	#print("LIST_PID = ", list_pid)
 	#print("LENGTH LIST PID = ", len(list_pid))
 	#print("OUT_SOCK_LIST = ", out_sock_list)
@@ -40,6 +40,8 @@ def start_lamports_alg():
 			out_sock_list[i].sendall(bytes(Request_string, "utf-8"))
 		except:
 			print("Not all Clients are connected")
+			return -1
+	return 1
 	#print("done with start_lamports")
 
 
@@ -131,36 +133,39 @@ def get_user_input():
 				print("Local time is now: " + str(local_time))
 				saved_request_time = local_time
 				input_string = input_string + " " + "[Timestamp:"+str(saved_request_time)+"-Pid:"+str(pid)+"]" + " " + str(local_time)
-				start_lamports_alg()
+				rv = start_lamports_alg()
 				#print("after start_lamports")
-				#Keep looping to keep trying to send to server
-				while(True):
-					if(reply_counter == 2 and request_queue[0][0] == pid):
-						try:
-							# send user input string to server, converted into bytes
-							print("SENDING TO SERVER")
-							out_sock.sendall(bytes(input_string, "utf-8"))
-						# handling exception in case trying to send data to a closed connection
-						except EOFError as e:
-							# close socket before exiting
-							out_sock.close()
-							#print("exiting program")
-							# flush console output buffer in case there are remaining prints
-							# that haven't actually been printed to console
-							stdout.flush() # imported from sys library
-							# exit program with status 0
-							_exit(0) # imported from os library
-						except KeyboardInterrupt:
-							# close socket before exiting
-							out_sock.close()
-							#print("exiting program")
-							# flush console output buffer in case there are remaining prints
-							# that haven't actually been printed to console
-							stdout.flush() # imported from sys library
-							# exit program with status 0
-							_exit(0) # imported from os library
-						break
-				print("done with sending to server")
+				if rv == 1:
+					#Keep looping to keep trying to send to server
+					while(True):
+						if(reply_counter == 2 and request_queue[0][0] == pid):
+							try:
+								# send user input string to server, converted into bytes
+								print("SENDING TO SERVER")
+								out_sock.sendall(bytes(input_string, "utf-8"))
+							# handling exception in case trying to send data to a closed connection
+							except EOFError as e:
+								# close socket before exiting
+								out_sock.close()
+								#print("exiting program")
+								# flush console output buffer in case there are remaining prints
+								# that haven't actually been printed to console
+								stdout.flush() # imported from sys library
+								# exit program with status 0
+								_exit(0) # imported from os library
+							except KeyboardInterrupt:
+								# close socket before exiting
+								out_sock.close()
+								#print("exiting program")
+								# flush console output buffer in case there are remaining prints
+								# that haven't actually been printed to console
+								stdout.flush() # imported from sys library
+								# exit program with status 0
+								_exit(0) # imported from os library
+							break
+					print("done with sending to server")
+				else:
+					print("Couldn't transfer as not all clients are connected")
 				reply_counter = 0
 			
 
@@ -184,8 +189,7 @@ def handle_msg(data, addr):
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
 		received_local_time = data_message[3]
-		local_time = max(local_time, int(received_local_time)) + 1
-		print("Local time is now: " + str(local_time))
+		
 
 		#Need to add requested transfer to own local queue
 		request_queue.append([int(received_pid), int(received_timestamp)])
@@ -197,7 +201,8 @@ def handle_msg(data, addr):
 
 
 		print("REPLY [Timestamp: " +  received_timestamp + "- Pid: " + received_pid, "] " + "Local Time: " +str(local_time))
-		
+		local_time = max(local_time, int(received_local_time)) + 1
+		print("Local time is now: " + str(local_time))
 		#Need to now send off Reply message back
 		send_message = "Reply " + received_timestamp + " " + received_pid +  " " + str(local_time)
 
@@ -230,12 +235,12 @@ def handle_msg(data, addr):
 	elif data_message[0] == "Respond":
 		#CHANGE LATER, NEED TO SETUP SERVER TO ALSO HAVE A LAMPORT CLOCK
 		received_timestamp = data_message[1]
-		#received_local_time = data_message[2]
-		local_time = local_time + 1
-		#local_time = max(local_time, int(received_local_timestamp)) + 1
-		print("Local time is now: " + str(local_time))
+		received_local_timestamp = data_message[2]
+		#local_time = local_time + 1
 
 		print("RELEASE " + received_timestamp)
+		local_time = max(local_time, int(received_local_timestamp)) + 1
+		print("Local time is now: " + str(local_time))
 
 		#Need to remove own transfer from local request queue
 		received_timestamp = request_queue[0][1]
@@ -255,11 +260,10 @@ def handle_msg(data, addr):
 		received_timestamp = int(data_message[1])
 		received_pid = int(data_message[2])
 		received_local_time = int(data_message[3])
-		local_time = max(local_time, int(received_local_time)) + 1
-		print("Local time is now: " + str(local_time))
-
 
 		print("DONE [Timestamp:", str(received_timestamp), "-Pid:", str(received_pid), "]")
+		local_time = max(local_time, int(received_local_time)) + 1
+		print("Local time is now: " + str(local_time))
 
 		#Need to now remove received_pid transfer from local request queue
 		request_queue.pop(request_queue.index([received_pid, received_timestamp]))
@@ -333,7 +337,7 @@ if __name__ == "__main__":
 	# since client and server are just different processes on the same machine
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
-	SERVER_PORT = 7185
+	SERVER_PORT = 7195
 	
 	ID = sys.argv[1]
 	ID_int = int(ID)
