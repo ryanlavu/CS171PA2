@@ -116,10 +116,11 @@ def get_user_input():
 				start_lamports_alg()
 				print("after start_lamports")
 				#Keep looping to keep trying to send to server
-				while(reply_counter != 2):
+				while(True):
 					if(reply_counter == 2 and request_queue[0][0] == pid):
 						try:
 							# send user input string to server, converted into bytes
+							print("SENDING TO SERVER")
 							out_sock.sendall(bytes(input_string, "utf-8"))
 						# handling exception in case trying to send data to a closed connection
 						except EOFError as e:
@@ -140,6 +141,7 @@ def get_user_input():
 							stdout.flush() # imported from sys library
 							# exit program with status 0
 							_exit(0) # imported from os library
+						break
 				print("done with sending to server")
 				reply_counter = 0
 			
@@ -185,8 +187,8 @@ def handle_msg(data, addr):
 	#Let the structure of reply message be "REPLY REQ_TIMESTAMP PID LOCAL_TIME"
 	#Receiving "Reply" messages
 	elif data_message[0] == "Reply":
-		print("WHOOOOOOOOOO")
-		reply_counter = reply_counter + 1
+		#print("WHOOOOOOOOOO")
+		
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
 		received_local_time = data_message[3]
@@ -199,18 +201,20 @@ def handle_msg(data, addr):
 	#Let the structure of Respond message be "RESPOND RECEIVED_TIMESTAMP RECEIVED_PID"
 	#Receiving Respond message from the server to signal block added onto blockchain, for client to tell other clients crit section is free
 	elif data_message[0] == "Respond":
-		received_timestamp = data_message[1]
-		received_pid = data_message[2]
+		#CHANGE LATER, NEED TO SETUP SERVER TO ALSO HAVE A LAMPORT CLOCK
+		#received_timestamp = data_message[1]
+		#received_pid = data_message[2]
 		local_time = local_time + 1
 		#local_time = max(local_time, int(received_timestamp)) + 1
 
 		print("RELEASE ", request_queue[0])
 
 		#Need to remove own transfer from local request queue
+		received_timestamp = request_queue[0][1]
 		request_queue.pop(0)
 		
 		#Need to now send off Release message to other clients
-		send_message = "Release " + str(local_time) + " " + str(pid) + " " + str(local_time)
+		send_message = "Release " + str(received_timestamp) + " " + str(pid) + " " + str(local_time)
 
 		for i in range(len(list_pid)):
 			#print("sending to pid ", list_pid[i])
@@ -224,6 +228,7 @@ def handle_msg(data, addr):
 		received_pid = data_message[2]
 		received_local_time = data_message[3]
 		local_time = max(local_time, int(received_local_time)) + 1
+
 
 		print("DONE [", received_timestamp, ",", received_pid, "]")
 
@@ -296,7 +301,7 @@ if __name__ == "__main__":
 	# since client and server are just different processes on the same machine
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
-	SERVER_PORT = 7085
+	SERVER_PORT = 7130
 	
 	ID = sys.argv[1]
 	ID_int = int(ID)

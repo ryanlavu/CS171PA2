@@ -143,10 +143,12 @@ def get_user_input():
 
 # simulates network delay then handles received message
 def handle_msg(data, addr):
+	print("GOT INPUT")
 	# simulate 3 seconds message-passing delay
 	#sleep(3) # imported from time library
 	# decode byte data into a string
 	data = data.decode()
+	print("DATA = ",data)
 	# echo message to console
 	#print(f"{addr[1]}: {data}", flush=True)
 
@@ -206,20 +208,38 @@ def handle_msg(data, addr):
 
 	# broadcast to all clients by iterating through each stored connection
 	if data_message[0] == "Transfer" or data_message[0] == "Balance":
-		for sock in out_socks:
-			conn = sock[0]
-			recv_addr = sock[1]
-			# echo message back to client
-			if recv_addr == addr:
-				try:
-					# convert message into bytes and send through socket
-					print("server sending bal/trans")
-					conn.sendall(bytes(f"{send_message}", "utf-8"))
-					#print(f"sent message to port {recv_addr[1]}", flush=True)
-				# handling exception in case trying to send data to a closed connection
-				except:
-					print(f"exception in sending to port {recv_addr[1]}", flush=True)
-					continue
+		if data_message[0] == "Transfer":
+			for sock in out_socks:
+				conn = sock[0]
+				recv_addr = sock[1]
+				# echo message back to client
+				if recv_addr == addr:
+					try:
+						# convert message into bytes and send through socket
+						print("server sending transmission")
+						conn.sendall(bytes(f"{send_message}", "utf-8"))
+						print("Server now sending Release message")
+						conn.sendall(bytes("Respond", "utf-8"))
+						#print(f"sent message to port {recv_addr[1]}", flush=True)
+					# handling exception in case trying to send data to a closed connection
+					except:
+						print(f"exception in sending to port {recv_addr[1]}", flush=True)
+						continue
+		if data_message[0] == "Balance":
+			for sock in out_socks:
+				conn = sock[0]
+				recv_addr = sock[1]
+				# echo message back to client
+				if recv_addr == addr:
+					try:
+						# convert message into bytes and send through socket
+						print("server sending bal")
+						conn.sendall(bytes(f"{send_message}", "utf-8"))
+						#print(f"sent message to port {recv_addr[1]}", flush=True)
+					# handling exception in case trying to send data to a closed connection
+					except:
+						print(f"exception in sending to port {recv_addr[1]}", flush=True)
+						continue
 
 # handle a new connection by waiting to receive from connection
 def respond(conn, addr):
@@ -256,7 +276,7 @@ if __name__ == "__main__":
 	# programatically get local machine's IP
 	IP = socket.gethostname()
 	# port 3000-49151 are generally usable
-	PORT = 7085
+	PORT = 7130
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
