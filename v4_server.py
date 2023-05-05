@@ -156,7 +156,7 @@ def handle_msg(data, addr):
 		orig_client_id = int(data_message[1])
 		#Initial message to server, establish client with its address
 		client_dict[addr[1]] = orig_client_id
-	if data_message[0] == "Balance":
+	elif data_message[0] == "Balance":
 		list_bal = list_blockchain.Calculate_Balances()
 		client_id = int(data_message[1][1:]) - 1
 		client_bal = list_bal[client_id]
@@ -167,13 +167,14 @@ def handle_msg(data, addr):
 		send_message = "Balance: $" + str(client_bal)
 		
 
-	if data_message[0] == "Transfer":
+	elif data_message[0] == "Transfer":
 		#Assume we append message at the end to include the client we are transferring funds from
 		#Message Input: Transfer P2 $1 P1	
 		#^ Means we transfer $1 from P1 to P2
 		#orig_client_string = data_message[3]
 
 		#NEED TO ADD CRITICAL SECTION HERE
+		print("Server transferring")
 
 
 		orig_client_string = "P"+str(client_dict[addr[1]])
@@ -212,6 +213,7 @@ def handle_msg(data, addr):
 			if recv_addr == addr:
 				try:
 					# convert message into bytes and send through socket
+					print("server sending bal/trans")
 					conn.sendall(bytes(f"{send_message}", "utf-8"))
 					#print(f"sent message to port {recv_addr[1]}", flush=True)
 				# handling exception in case trying to send data to a closed connection
@@ -254,7 +256,7 @@ if __name__ == "__main__":
 	# programatically get local machine's IP
 	IP = socket.gethostname()
 	# port 3000-49151 are generally usable
-	PORT = 7001
+	PORT = 7060
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -11,22 +11,38 @@ from time import sleep
 import sys
 
 import numpy as np 
+local_time = 0
+pid = 0
+#Counter for how many REPLY messages the client has received
+reply_counter = 0
+out_socks = []
 
 #Implement Lamport's algorithm here
 def start_lamports_alg():
+	global local_time
+	global pid
 	#Put request at head of own queue
 	request_queue.append([pid, local_time])
 	#Print out REQUEST on client screen whenever we request a transfer
 	print("REQUEST ", local_time)
+	print("LIST_PID = ", list_pid)
+	print("LENGTH LIST PID = ", len(list_pid))
+	print("OUT_SOCK_LIST = ", out_sock_list)
 
 	#Send a Request message to the other clients
-	Request_string = "Request " + str(local_time) + str(ID)  + str(local_time)
+	Request_string = "Request " + str(local_time) + " " + str(ID) + " " + str(local_time)
 	for i in range(len(list_pid)):
-		out_sock_list[list_pid[i]].sendall(bytes(Request_string, "utf-8"))
+		print("sending to pid ", list_pid[i])
+		out_sock_list[i].sendall(bytes(Request_string, "utf-8"))
+	print("done with start_lamports")
 
 
 # keep waiting and asking for user inputs
 def get_user_input():
+	global local_time
+	global pid
+	global out_socks
+	global reply_counter
 	#Need to account for Transfer and Balance inputs
 	while True:
 		# wait for user input
@@ -77,7 +93,7 @@ def get_user_input():
 				except EOFError as e:
 					# close socket before exiting
 					out_sock.close()
-					#print("exiting program")
+					#print("exiting program")print
 					# flush console output buffer in case there are remaining prints
 					# that haven't actually been printed to console
 					stdout.flush() # imported from sys library
@@ -95,39 +111,47 @@ def get_user_input():
 
 			if user_input_list[0] == "Transfer":
 				#Need to stop here and implement Lamport's Mutex Algorithm
-				#Counter for how many REPLY messages the client has received
-				reply_counter = 0
+				
 				local_time = local_time + 1
 				start_lamports_alg()
-				
-				try:
-					# send user input string to server, converted into bytes
-					out_sock.sendall(bytes(input_string, "utf-8"))
-				# handling exception in case trying to send data to a closed connection
-				except EOFError as e:
-					# close socket before exiting
-					out_sock.close()
-					#print("exiting program")
-					# flush console output buffer in case there are remaining prints
-					# that haven't actually been printed to console
-					stdout.flush() # imported from sys library
-					# exit program with status 0
-					_exit(0) # imported from os library
-				except KeyboardInterrupt:
-					# close socket before exiting
-					out_sock.close()
-					#print("exiting program")
-					# flush console output buffer in case there are remaining prints
-					# that haven't actually been printed to console
-					stdout.flush() # imported from sys library
-					# exit program with status 0
-					_exit(0) # imported from os library
+				print("after start_lamports")
+				#Keep looping to keep trying to send to server
+				while(reply_counter != 2 and request_queue[0][0] == pid):
+					if(reply_counter != 2 and request_queue[0][0] == pid):
+						try:
+							# send user input string to server, converted into bytes
+							out_sock.sendall(bytes(input_string, "utf-8"))
+						# handling exception in case trying to send data to a closed connection
+						except EOFError as e:
+							# close socket before exiting
+							out_sock.close()
+							#print("exiting program")
+							# flush console output buffer in case there are remaining prints
+							# that haven't actually been printed to console
+							stdout.flush() # imported from sys library
+							# exit program with status 0
+							_exit(0) # imported from os library
+						except KeyboardInterrupt:
+							# close socket before exiting
+							out_sock.close()
+							#print("exiting program")
+							# flush console output buffer in case there are remaining prints
+							# that haven't actually been printed to console
+							stdout.flush() # imported from sys library
+							# exit program with status 0
+							_exit(0) # imported from os library
+				print("done with sending to server")
+				reply_counter = 0
 			
 
-			
+
 
 # simulates network delay then handles received message
 def handle_msg(data, addr):
+	global pid
+	global local_time
+	global out_socks
+	global reply_counter
 	# simulate 3 seconds message-passing delay
 	sleep(3) # imported from time library
 	# decode byte data into a string
@@ -147,11 +171,12 @@ def handle_msg(data, addr):
 		print("REPLY [", received_timestamp, ",", received_pid, "] ", str(local_time))
 		
 		#Need to now send off Reply message back
-		send_message = "Reply " + received_timestamp + " " + str(pid) +  " " + str(local_time)
+		send_message = "Reply " + received_timestamp + " " + received_pid +  " " + str(local_time)
 
 	#Let the structure of reply message be "REPLY REQ_TIMESTAMP PID LOCAL_TIME"
 	#Receiving "Reply" messages
-	if data_message[0] == "Reply":
+	elif data_message[0] == "Reply":
+		print("WHOOOOOOOOOO")
 		reply_counter = reply_counter + 1
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
@@ -164,7 +189,7 @@ def handle_msg(data, addr):
 
 	#Let the structure of Respond message be "RESPOND RECEIVED_TIMESTAMP RECEIVED_PID"
 	#Receiving Respond message from the server to signal block added onto blockchain, for client to tell other clients crit section is free
-	if data_message[0] == "Respond":
+	elif data_message[0] == "Respond":
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
 		local_time = local_time + 1
@@ -180,7 +205,7 @@ def handle_msg(data, addr):
 	
 	#Structure of Release message "RELEASE RECIEVED_TIMESTAMP RECEIVED_PID LOCAL_TIME"
 	#Receiving the Release message, saying crit section is free
-	if data_message[0] == "Release":
+	elif data_message[0] == "Release":
 		received_timestamp = data_message[1]
 		received_pid = data_message[2]
 		received_local_time = data_message[3]
@@ -190,7 +215,6 @@ def handle_msg(data, addr):
 
 		#Need to now remove received_pid transfer from local request queue
 		request_queue.pop(request_queue.index([received_pid, received_timestamp]))
-
 
 	# echo message to console
 	else:
@@ -205,6 +229,7 @@ def handle_msg(data, addr):
 				# echo message back to client
 				if recv_addr == addr:
 					try:
+						print("SENDING MESSAGE", send_message)
 						# convert message into bytes and send through socket
 						conn.sendall(bytes(f"{send_message}", "utf-8"))
 						#print(f"sent message to port {recv_addr[1]}", flush=True)
@@ -245,7 +270,7 @@ if __name__ == "__main__":
 	# since client and server are just different processes on the same machine
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
-	SERVER_PORT = 7001
+	SERVER_PORT = 7060
 	
 	ID = sys.argv[1]
 	ID_int = int(ID)
@@ -273,7 +298,7 @@ if __name__ == "__main__":
 	#Start clock off at time 0
 	#Whenever local time changes, we need to print out on client side
 	#Increment by time_pid_pair[0] = time_pid_pair[0]+1
-	local_time = 0
+	
 	pid = ID_int
 	time_pid_pair = np.array([0, ID_int])
 
@@ -286,7 +311,7 @@ if __name__ == "__main__":
 	threading.Thread(target=get_user_input, daemon=False).start()
 
 	
-	out_socks = []
+	#out_socks = []
 	#Need to set up listening socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	in_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -297,18 +322,18 @@ if __name__ == "__main__":
 	# loop to keep accepting new connections, keep looping until connected to the two other clients
 	
 	while len(out_socks) != 2:
-		print("IN WHILE")
+		#print("IN WHILE")
 		try:
 			# wait to accept any incoming connections
 			# conn: socket object used to send to and receive from connection
 			# addr: (IP, port) of connection 
-			print("IN TRY")
+			#print("IN TRY")
 			conn, addr = in_sock.accept()
 		except:
 			print("exception in accept", flush=True)
 			break
 		# add connection to array to send data through it later
-		print("ADDING")
+		#print("ADDING")
 		out_socks.append((conn, addr))
 		# spawn new thread for responding to each connection
 		threading.Thread(target=respond, args=(conn, addr)).start()
@@ -344,4 +369,5 @@ if __name__ == "__main__":
 
 		# spawn a new thread to handle message 
 		# so simulated network delay and message handling don't block receive
-		threading.Thread(target=handle_msg, args=(data,)).start()
+		print("HELLOHELLO")
+		threading.Thread(target=handle_msg, args=(data,(SERVER_IP, SERVER_PORT))).start()
