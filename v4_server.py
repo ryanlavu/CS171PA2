@@ -100,7 +100,7 @@ class block_obj:
 
 	def __str__(self) -> str:
 		trans_list = self.transaction.split(",")
-		print("TIMESTAMP = ", trans_list[3])
+		#print("TIMESTAMP = ", trans_list[3])
 		#Assume transaction in form of P1,P2,$1
 		#Preprocess to remove first characters
 		return "(" + trans_list[0] + ", " + trans_list[1] + ", " + trans_list[2] + ", " + str(self.hash_previous) + ", "+ trans_list[3] + ")"
@@ -300,7 +300,7 @@ if __name__ == "__main__":
 	# programatically get local machine's IP
 	IP = socket.gethostname()
 	# port 3000-49151 are generally usable
-	PORT = 7195
+	PORT = 7200
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

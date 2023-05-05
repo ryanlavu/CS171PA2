@@ -337,7 +337,7 @@ if __name__ == "__main__":
 	# since client and server are just different processes on the same machine
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
-	SERVER_PORT = 7195
+	SERVER_PORT = 7200
 	
 	ID = sys.argv[1]
 	ID_int = int(ID)
