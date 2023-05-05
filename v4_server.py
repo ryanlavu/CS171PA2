@@ -10,6 +10,8 @@ from os import _exit
 from sys import stdout
 from time import sleep
 
+local_time = 0
+mutex = threading.Lock()
 # Setup block chain
 class blockchain:
 	def __init__(self) -> None:
@@ -79,6 +81,7 @@ class block_obj:
 		self.hash_previous = hash_previous
 		transformed_transaction = transaction.split(",")
 		transformed_transaction_concat = transformed_transaction[0] + transformed_transaction[1] + transformed_transaction[2]
+		#self.timestamp = transformed_transaction[3]
 		self.transaction = transaction
 		self.nonce = nonce
 
@@ -97,18 +100,22 @@ class block_obj:
 
 	def __str__(self) -> str:
 		trans_list = self.transaction.split(",")
+		print("TIMESTAMP = ", trans_list[3])
 		#Assume transaction in form of P1,P2,$1
 		#Preprocess to remove first characters
-		return "(" + trans_list[0] + ", " + trans_list[1] + ", " + trans_list[2] + ", " + str(self.hash_previous) + ")"
+		return "(" + trans_list[0] + ", " + trans_list[1] + ", " + trans_list[2] + ", " + str(self.hash_previous) + ", "+ trans_list[3] + ")"
 		
 
 list_blockchain = blockchain()
 client_dict = {}
 
 def get_user_input():
+	global local_time
 	while True:
 		user_input = input()	
 		token_input = user_input.split()
+		local_time = local_time + 1
+		print("Local time is now: " + str(local_time))
 		#try:
 		#Handle Blockchain input		
 		if token_input[0] == "Blockchain":
@@ -143,49 +150,65 @@ def get_user_input():
 
 # simulates network delay then handles received message
 def handle_msg(data, addr):
-	print("GOT INPUT")
+	global local_time
+	
+	#print("GOT INPUT")
 	# simulate 3 seconds message-passing delay
 	#sleep(3) # imported from time library
 	# decode byte data into a string
 	data = data.decode()
-	print("DATA = ",data)
+	#print("DATA = ",data)
 	# echo message to console
 	#print(f"{addr[1]}: {data}", flush=True)
 
 	#Preprocess data
 	data_message = data.split()
 	if data_message[0] == "Hello":
+		local_time = max(local_time, int(data_message[2])) + 1
+		print("Local time is now: " + str(local_time))
 		orig_client_id = int(data_message[1])
 		#Initial message to server, establish client with its address
 		client_dict[addr[1]] = orig_client_id
 	elif data_message[0] == "Balance":
+		
 		list_bal = list_blockchain.Calculate_Balances()
 		client_id = int(data_message[1][1:]) - 1
 		client_bal = list_bal[client_id]
 
 		#Assume that we append message at end to include which client requested Balance
-		#Message Input: Balance P2 P1
+		#Message Input: Balance P2 P1 received_local_time
 		#^ Means P1 requested Balance of P2
 		send_message = "Balance: $" + str(client_bal)
-		
+
+		local_time = max(local_time, int(data_message[3])) + 1
+		print("Local time is now: " + str(local_time))
 
 	elif data_message[0] == "Transfer":
+		mutex.acquire()
+		print("Acquired mutex lock")
 		#Assume we append message at the end to include the client we are transferring funds from
-		#Message Input: Transfer P2 $1 P1	
+		#Message Input: Transfer P2 $1 P1 Timestamp received_local_time	
 		#^ Means we transfer $1 from P1 to P2
 		#orig_client_string = data_message[3]
+		local_time = max(local_time, int(data_message[5])) + 1
+		print("Local time is now: " + str(local_time))
 
-		#NEED TO ADD CRITICAL SECTION HERE
-		print("Server transferring")
+		
+		#print("Server transferring")
+		
 
 
 		orig_client_string = "P"+str(client_dict[addr[1]])
 		recepient_string = data_message[1]
 		amount_dollar = data_message[2]
+		send_from = data_message[3]
+		timestamp = data_message[4]
+
+		respond_string = "Respond " + timestamp
 
 		#Need to reorder transaction string to fit structure
-		#In order of PSender,PRecepient,$Amount
-		trans_string = orig_client_string + "," + recepient_string + "," + amount_dollar
+		#In order of PSender,PRecepient,$Amount,[Timestamp]
+		trans_string = orig_client_string + "," + recepient_string + "," + amount_dollar + "," + timestamp
 
 		#Check if there are any blocks on chain, if not create genesis block
 		#Create genesis block
@@ -208,6 +231,7 @@ def handle_msg(data, addr):
 
 	# broadcast to all clients by iterating through each stored connection
 	if data_message[0] == "Transfer" or data_message[0] == "Balance":
+		send_message = send_message + "#" + str(local_time)
 		if data_message[0] == "Transfer":
 			for sock in out_socks:
 				conn = sock[0]
@@ -218,13 +242,16 @@ def handle_msg(data, addr):
 						# convert message into bytes and send through socket
 						print("server sending transmission")
 						conn.sendall(bytes(f"{send_message}", "utf-8"))
-						print("Server now sending Release message")
-						conn.sendall(bytes("Respond", "utf-8"))
+						mutex.release()
+						print("Server now sending Respond message + releasing mutex lock")
+						conn.sendall(bytes(f"{respond_string}", "utf-8"))
 						#print(f"sent message to port {recv_addr[1]}", flush=True)
 					# handling exception in case trying to send data to a closed connection
 					except:
+						mutex.release()
 						print(f"exception in sending to port {recv_addr[1]}", flush=True)
 						continue
+			
 		if data_message[0] == "Balance":
 			for sock in out_socks:
 				conn = sock[0]
@@ -268,15 +295,12 @@ def respond(conn, addr):
 		threading.Thread(target=handle_msg, args=(data, addr)).start()
 
 
-
-
-
 if __name__ == "__main__":
 	# specify server's socket address
 	# programatically get local machine's IP
 	IP = socket.gethostname()
 	# port 3000-49151 are generally usable
-	PORT = 7130
+	PORT = 7185
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -4,6 +4,7 @@
 # and echoes any message it receives from the server to console
 import socket
 import threading
+from operator import itemgetter
 
 from os import _exit
 from sys import stdout
@@ -16,6 +17,8 @@ pid = 0
 #Counter for how many REPLY messages the client has received
 reply_counter = 0
 out_socks = []
+#Store requests as [PID, Timestamp]
+request_queue = []
 
 #Implement Lamport's algorithm here
 def start_lamports_alg():
@@ -24,7 +27,7 @@ def start_lamports_alg():
 	#Put request at head of own queue
 	request_queue.append([pid, local_time])
 	#Print out REQUEST on client screen whenever we request a transfer
-	#print("REQUEST ", local_time)
+	print("REQUEST " + "[Timestamp: " + str(local_time)+ "-Pid: " + str(pid + "] "))
 	#print("LIST_PID = ", list_pid)
 	#print("LENGTH LIST PID = ", len(list_pid))
 	#print("OUT_SOCK_LIST = ", out_sock_list)
@@ -33,8 +36,11 @@ def start_lamports_alg():
 	Request_string = "Request " + str(local_time) + " " + str(ID) + " " + str(local_time)
 	for i in range(len(list_pid)):
 		#print("sending to pid ", list_pid[i])
-		out_sock_list[i].sendall(bytes(Request_string, "utf-8"))
-	print("done with start_lamports")
+		try:
+			out_sock_list[i].sendall(bytes(Request_string, "utf-8"))
+		except:
+			print("Not all Clients are connected")
+	#print("done with start_lamports")
 
 
 # keep waiting and asking for user inputs
@@ -43,6 +49,7 @@ def get_user_input():
 	global pid
 	global out_socks
 	global reply_counter
+	global request_queue
 	#Need to account for Transfer and Balance inputs
 	while True:
 		# wait for user input
@@ -61,11 +68,15 @@ def get_user_input():
 			_exit(0) # imported from os library
 		if user_input_list[0] == "wait":
 			local_time = local_time + 1
+			print("Local time is now: " + str(local_time))
 			sleep_time = int(user_input_list[1])
 			sleep(sleep_time)
 		if user_input_list[0] == "exit":
 			# close socket before exiting
 			out_sock.close()
+			out_sock_2.close()
+			out_sock_3.close()
+			in_sock.close()
 			#print("exiting program")
 			# flush console output buffer in case there are remaining prints
 			# that haven't actually been printed to console
@@ -75,8 +86,10 @@ def get_user_input():
 		if user_input_list[0] == "connect":
 			#Manual input to connect to all the other clients
 			#Outgoing connection to other clients
+			local_time = local_time + 1
+			print("Local time is now: " + str(local_time))
 			for i in range(len(list_pid)):
-				print("CONNECTING111")
+				#print("CONNECTING111")
 				out_sock_list[i].connect((SERVER_IP, SERVER_PORT + list_pid[i]))
 
 		else:
@@ -86,6 +99,8 @@ def get_user_input():
 
 			if user_input_list[0] == "Balance":
 				local_time = local_time + 1
+				print("Local time is now: " + str(local_time))
+				input_string = input_string + " " + str(local_time)
 				try:
 					# send user input string to server, converted into bytes
 					out_sock.sendall(bytes(input_string, "utf-8"))
@@ -113,8 +128,11 @@ def get_user_input():
 				#Need to stop here and implement Lamport's Mutex Algorithm
 				
 				local_time = local_time + 1
+				print("Local time is now: " + str(local_time))
+				saved_request_time = local_time
+				input_string = input_string + " " + "[Timestamp:"+str(saved_request_time)+"-Pid:"+str(pid)+"]" + " " + str(local_time)
 				start_lamports_alg()
-				print("after start_lamports")
+				#print("after start_lamports")
 				#Keep looping to keep trying to send to server
 				while(True):
 					if(reply_counter == 2 and request_queue[0][0] == pid):
@@ -154,6 +172,7 @@ def handle_msg(data, addr):
 	global local_time
 	global out_socks
 	global reply_counter
+	global request_queue
 	# simulate 3 seconds message-passing delay
 	sleep(3) # imported from time library
 	# decode byte data into a string
@@ -166,23 +185,30 @@ def handle_msg(data, addr):
 		received_pid = data_message[2]
 		received_local_time = data_message[3]
 		local_time = max(local_time, int(received_local_time)) + 1
+		print("Local time is now: " + str(local_time))
 
 		#Need to add requested transfer to own local queue
-		request_queue.append([received_pid, received_timestamp])
+		request_queue.append([int(received_pid), int(received_timestamp)])
 
-		print("REPLY [", received_timestamp, ",", received_pid, "] ", str(local_time))
+		#Now check if need to rearrange list
+		#len > 1 means there are multiple items now in the request_queue
+		if len(request_queue) > 1:
+			request_queue = sorted(request_queue, key=itemgetter(1,0))
+
+
+		print("REPLY [Timestamp: " +  received_timestamp + "- Pid: " + received_pid, "] " + "Local Time: " +str(local_time))
 		
 		#Need to now send off Reply message back
 		send_message = "Reply " + received_timestamp + " " + received_pid +  " " + str(local_time)
 
 		for i in range(len(list_pid)):
 			#print("sending to pid ", list_pid[i])
-			print("LIST_PID[i] = ", list_pid[i])
-			print("RECEIVED_PID = ", received_pid)
+			#print("LIST_PID[i] = ", list_pid[i])
+			#print("RECEIVED_PID = ", received_pid)
 			if list_pid[i] == int(received_pid):
-				print("SENDING TO ", out_sock_list[i])
+				#print("SENDING TO ", out_sock_list[i])
 				out_sock_list[i].sendall(bytes(send_message, "utf-8"))
-		print("done with sending")
+		#print("done with sending")
 
 	#Let the structure of reply message be "REPLY REQ_TIMESTAMP PID LOCAL_TIME"
 	#Receiving "Reply" messages
@@ -193,21 +219,23 @@ def handle_msg(data, addr):
 		received_pid = data_message[2]
 		received_local_time = data_message[3]
 
-		print("REPLIED ", received_timestamp)
+		print("REPLIED " + "[Timestamp: " + received_timestamp + "-Pid: " + received_pid + "]" + " Received Time: " + received_local_time + " ")
 
 		local_time = max(local_time, int(received_local_time)) + 1
+		print("Local time is now: " + str(local_time) + " ")
 		reply_counter = reply_counter + 1
 
-	#Let the structure of Respond message be "RESPOND RECEIVED_TIMESTAMP RECEIVED_PID"
+	#Let the structure of Respond message be "RESPOND RECEIVED_TIMESTAMP RECEIVED_PID TIME_RECEIVED"
 	#Receiving Respond message from the server to signal block added onto blockchain, for client to tell other clients crit section is free
 	elif data_message[0] == "Respond":
 		#CHANGE LATER, NEED TO SETUP SERVER TO ALSO HAVE A LAMPORT CLOCK
-		#received_timestamp = data_message[1]
-		#received_pid = data_message[2]
+		received_timestamp = data_message[1]
+		#received_local_time = data_message[2]
 		local_time = local_time + 1
-		#local_time = max(local_time, int(received_timestamp)) + 1
+		#local_time = max(local_time, int(received_local_timestamp)) + 1
+		print("Local time is now: " + str(local_time))
 
-		print("RELEASE ", request_queue[0])
+		print("RELEASE " + received_timestamp)
 
 		#Need to remove own transfer from local request queue
 		received_timestamp = request_queue[0][1]
@@ -218,27 +246,31 @@ def handle_msg(data, addr):
 
 		for i in range(len(list_pid)):
 			#print("sending to pid ", list_pid[i])
-			print("SENDING TO ", out_sock_list[i])
+			#print("SENDING TO ", out_sock_list[i])
 			out_sock_list[i].sendall(bytes(send_message, "utf-8"))
 	
 	#Structure of Release message "RELEASE RECIEVED_TIMESTAMP RECEIVED_PID LOCAL_TIME"
 	#Receiving the Release message, saying crit section is free
 	elif data_message[0] == "Release":
-		received_timestamp = data_message[1]
-		received_pid = data_message[2]
-		received_local_time = data_message[3]
+		received_timestamp = int(data_message[1])
+		received_pid = int(data_message[2])
+		received_local_time = int(data_message[3])
 		local_time = max(local_time, int(received_local_time)) + 1
+		print("Local time is now: " + str(local_time))
 
 
-		print("DONE [", received_timestamp, ",", received_pid, "]")
+		print("DONE [Timestamp:", str(received_timestamp), "-Pid:", str(received_pid), "]")
 
 		#Need to now remove received_pid transfer from local request queue
 		request_queue.pop(request_queue.index([received_pid, received_timestamp]))
 
 	# echo message to console
 	else:
-		local_time = local_time + 1
-		print(data)
+		data_else_message = data.split("#")
+		if len(data_else_message) > 1:
+			local_time = max(local_time,int(data_else_message[-1])) + 1
+			print("Local time is now: " + str(local_time))
+		print(data_else_message[0])
 
 	"""
 	#When receiving one of these messages, per Lamport need to send certain message back to sender
@@ -301,7 +333,7 @@ if __name__ == "__main__":
 	# since client and server are just different processes on the same machine
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
-	SERVER_PORT = 7130
+	SERVER_PORT = 7185
 	
 	ID = sys.argv[1]
 	ID_int = int(ID)
@@ -309,9 +341,6 @@ if __name__ == "__main__":
 	list_pid = [1, 2, 3]
 	list_pid.pop(ID_int-1)
 	
-	#Store requests as [PID, Timestamp]
-	request_queue = []
-
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	# do not need to specify address for own socket for making an outbound connection
 	out_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -334,7 +363,7 @@ if __name__ == "__main__":
 	time_pid_pair = np.array([0, ID_int])
 
 	
-	Hello_string = "Hello " + str(ID)
+	Hello_string = "Hello " + str(ID) + " " + str(local_time)
 	out_sock.sendall(bytes(Hello_string, "utf-8"))
 
 	# spawn new thread to keep waiting for user inputs
@@ -400,5 +429,5 @@ if __name__ == "__main__":
 
 		# spawn a new thread to handle message 
 		# so simulated network delay and message handling don't block receive
-		print("HELLOHELLO")
+		#print("HELLOHELLO")
 		threading.Thread(target=handle_msg, args=(data,(SERVER_IP, SERVER_PORT))).start()
