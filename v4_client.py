@@ -24,15 +24,15 @@ def start_lamports_alg():
 	#Put request at head of own queue
 	request_queue.append([pid, local_time])
 	#Print out REQUEST on client screen whenever we request a transfer
-	print("REQUEST ", local_time)
-	print("LIST_PID = ", list_pid)
-	print("LENGTH LIST PID = ", len(list_pid))
-	print("OUT_SOCK_LIST = ", out_sock_list)
+	#print("REQUEST ", local_time)
+	#print("LIST_PID = ", list_pid)
+	#print("LENGTH LIST PID = ", len(list_pid))
+	#print("OUT_SOCK_LIST = ", out_sock_list)
 
 	#Send a Request message to the other clients
 	Request_string = "Request " + str(local_time) + " " + str(ID) + " " + str(local_time)
 	for i in range(len(list_pid)):
-		print("sending to pid ", list_pid[i])
+		#print("sending to pid ", list_pid[i])
 		out_sock_list[i].sendall(bytes(Request_string, "utf-8"))
 	print("done with start_lamports")
 
@@ -116,8 +116,8 @@ def get_user_input():
 				start_lamports_alg()
 				print("after start_lamports")
 				#Keep looping to keep trying to send to server
-				while(reply_counter != 2 and request_queue[0][0] == pid):
-					if(reply_counter != 2 and request_queue[0][0] == pid):
+				while(reply_counter != 2):
+					if(reply_counter == 2 and request_queue[0][0] == pid):
 						try:
 							# send user input string to server, converted into bytes
 							out_sock.sendall(bytes(input_string, "utf-8"))
@@ -173,6 +173,15 @@ def handle_msg(data, addr):
 		#Need to now send off Reply message back
 		send_message = "Reply " + received_timestamp + " " + received_pid +  " " + str(local_time)
 
+		for i in range(len(list_pid)):
+			#print("sending to pid ", list_pid[i])
+			print("LIST_PID[i] = ", list_pid[i])
+			print("RECEIVED_PID = ", received_pid)
+			if list_pid[i] == int(received_pid):
+				print("SENDING TO ", out_sock_list[i])
+				out_sock_list[i].sendall(bytes(send_message, "utf-8"))
+		print("done with sending")
+
 	#Let the structure of reply message be "REPLY REQ_TIMESTAMP PID LOCAL_TIME"
 	#Receiving "Reply" messages
 	elif data_message[0] == "Reply":
@@ -202,6 +211,11 @@ def handle_msg(data, addr):
 		
 		#Need to now send off Release message to other clients
 		send_message = "Release " + str(local_time) + " " + str(pid) + " " + str(local_time)
+
+		for i in range(len(list_pid)):
+			#print("sending to pid ", list_pid[i])
+			print("SENDING TO ", out_sock_list[i])
+			out_sock_list[i].sendall(bytes(send_message, "utf-8"))
 	
 	#Structure of Release message "RELEASE RECIEVED_TIMESTAMP RECEIVED_PID LOCAL_TIME"
 	#Receiving the Release message, saying crit section is free
@@ -221,8 +235,11 @@ def handle_msg(data, addr):
 		local_time = local_time + 1
 		print(data)
 
+	"""
 	#When receiving one of these messages, per Lamport need to send certain message back to sender
 	if data_message[0] == "Request" or data_message[0] == "Respond":
+
+		
 		for sock in out_socks:
 				conn = sock[0]
 				recv_addr = sock[1]
@@ -230,6 +247,7 @@ def handle_msg(data, addr):
 				if recv_addr == addr:
 					try:
 						print("SENDING MESSAGE", send_message)
+						print("SENDING TO ", sock)
 						# convert message into bytes and send through socket
 						conn.sendall(bytes(f"{send_message}", "utf-8"))
 						#print(f"sent message to port {recv_addr[1]}", flush=True)
@@ -237,6 +255,14 @@ def handle_msg(data, addr):
 					except:
 						print(f"exception in sending to port {recv_addr[1]}", flush=True)
 						continue
+		
+		for i in range(len(list_pid)):
+			#print("sending to pid ", list_pid[i])
+			if list_pid[i] == :
+				print("SENDING TO ", out_sock_list[i])
+				out_sock_list[i].sendall(bytes(send_message, "utf-8"))
+		print("done with sending")
+	"""
 
 def respond(conn, addr):
 	#print(f"accepted connection from port {addr[1]}", flush=True)
@@ -270,7 +296,7 @@ if __name__ == "__main__":
 	# since client and server are just different processes on the same machine
 	# server's IP is just local machine's IP
 	SERVER_IP = socket.gethostname()
-	SERVER_PORT = 7060
+	SERVER_PORT = 7085
 	
 	ID = sys.argv[1]
 	ID_int = int(ID)

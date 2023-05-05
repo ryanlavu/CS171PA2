@@ -256,7 +256,7 @@ if __name__ == "__main__":
 	# programatically get local machine's IP
 	IP = socket.gethostname()
 	# port 3000-49151 are generally usable
-	PORT = 7060
+	PORT = 7085
 
 	# create a socket object, SOCK_STREAM specifies a TCP socket
 	in_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
